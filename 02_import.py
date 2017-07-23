@@ -22,6 +22,7 @@ def hashAllFilesInDir(rootDirPath):
     return allFilesInDir
 
 
+# removes files that we don't want to import, e.g. the annoying cookies MacOs leaves.
 def filterFiles(allFiles):
     keep = {}
     skip = []
@@ -37,10 +38,10 @@ def filterFiles(allFiles):
 
 
 def getFilesNotAlreadyInDatabase(filehashlist):
-    filesInDatabase =  DbQueries.getAllFileshashValues()
+    filesInDatabase =  DbQueries.getAllFilehashValues()
     # only want to copy files not in database
-    filesToCopy = list(set(filehashlist) - set(filesInDatabase))
-    return filesToCopy
+    filesNotInDatabase = list(set(filehashlist) - set(filesInDatabase))
+    return filesNotInDatabase
 
 
 def CopyFileIntoDepot(depotRootPath, sourceFilePath, filehash, logger):
@@ -51,7 +52,8 @@ def CopyFileIntoDepot(depotRootPath, sourceFilePath, filehash, logger):
         if not os.path.isdir(destinationDirPath):
             os.mkdir(destinationDirPath)
 
-        # for now always copy, even if file exists. If copy interrupted file may be corrupt, but a reimport will fix
+        # for now always copy, even if file exists.
+        # If copy interrupted file may be corrupt, but a reimport will fix
         logger.log("copying %s to %s" % (sourceFilePath, destinationFilePath))
         shutil.copyfile(sourceFilePath, destinationFilePath)
 
@@ -64,7 +66,7 @@ def copyFiles(filesToCopy, allFiles, depotRootPath, logger):
 
 
 def addFilesToFilesTable(filehashList):
-    DbQueries.tempAddFilesToFilesTable(filehashList)
+    DbQueries.addFiles(filehashList)
 
 
 def getDirectoryPaths(filesToCopy):
@@ -92,7 +94,7 @@ def addDirsToDirsTable(dirsToImport, dirHashes):
     dirsToAdd = []
     for dirhash in dirsToImport:
         dirsToAdd.append((dirhash, dirHashes[dirhash]))
-    DbQueries.addDirsToDirsTable(dirsToAdd)
+    DbQueries.addDirectories(dirsToAdd)
 
 def getPathsNotAlreadyInDatabase(dirHashes, filesToImport):
     dirsPaths = {v: k for k, v in dirHashes.iteritems()}
@@ -113,11 +115,11 @@ def getPathsNotAlreadyInDatabase(dirHashes, filesToImport):
 
 
 def addPathsToPathsTable(pathsToImport):
-    DbQueries.addPathsToPathsTable(pathsToImport)
+    DbQueries.addFilepaths(pathsToImport)
 
 
 def skipDirStart(filesToImport):
-    if not settings.skipAtStartOfPath:
+    if not settings.baseDirToRemoveFromPaths:
         return filesToImport
     importedFiles = {}
     for filehash in filesToImport:
@@ -125,14 +127,15 @@ def skipDirStart(filesToImport):
         for path in filesToImport[filehash]:
             dirpath = path[0]
             filename = path[1]
-            newpath = os.path.relpath(dirpath, settings.skipAtStartOfPath)
+            newpath = os.path.relpath(dirpath, settings.baseDirToRemoveFromPaths)
             importedFiles[filehash].append((newpath, filename))
     return importedFiles
 
-logger = DbLogger.dbLogger()
-dbpath = settings.dbFilePath
 
-allFiles = hashAllFilesInDir(settings.rootDirPath)
+
+logger = DbLogger.dbLogger()
+
+allFiles = hashAllFilesInDir(settings.dirToImport)
 logger.log("number of unique files: %d" % len(allFiles.keys()))
 
 filesToImport, filesToSkip = filterFiles(allFiles)
@@ -169,6 +172,10 @@ logger.log("number of paths to import (i.e. not already in database): %d" % len(
 if pathsToImport:
     addPathsToPathsTable(pathsToImport)
 
+print "ALL Files"
+allpaths = DbQueries.getAllFileEntries()
+for entry in allpaths:
+    print entry
 
 # TODO NEXT
 # 4a: option to skip first part of path

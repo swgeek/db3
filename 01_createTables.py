@@ -1,20 +1,15 @@
 
-# for now, directly connecting etc.
-# maybe switch to using core db library at some point
-
-# only run first time!
-
 import sqlite3
 
 import DbSchema
 import settings
 
-dbFilePath = settings.dbFilePath
+dbFilePath = settings.databaseFile
 
 '''
 uncomment this if creating additional tables after database already created
-if not os.path.isfile(dbFilePath):
-    print "file %s does not exist! Exiting" % dbFilePath
+if not os.path.isfile(databaseFile):
+    print "file %s does not exist! Exiting" % databaseFile
     exit(1)
 '''
 
@@ -24,7 +19,7 @@ with connection:  # if do not use with, then have to do "commit" at end
     createTableCommand = "create table %s (%s);" % (DbSchema.directoriesTable, DbSchema.directoriesSchema)
     cursor.execute(createTableCommand)
 
-    createTableCommand = "create table %s (%s);" % (DbSchema.directoryForFileTable, DbSchema.directoryForFileSchema)
+    createTableCommand = "create table %s (%s);" % (DbSchema.filepathsTable, DbSchema.filepathsSchema)
     cursor.execute(createTableCommand)
 
     createTableCommand = "create table %s (%s);" % (DbSchema.filesTable, DbSchema.filesSchema)

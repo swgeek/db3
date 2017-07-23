@@ -50,7 +50,7 @@ def getFirstFilePathsForFiles(filesToFind, filesAndPaths):
             continue # already have this file
         if filehash not in filesToFindSet:
             continue  # not interested in this file
-        filepath = os.path.join(entry["dirpath"], entry["filename"])
+        filepath = os.path.join(entry["origDirpath"], entry["filename"])
         firstFilePaths[filehash] = filepath
     return firstFilePaths
 

@@ -94,17 +94,53 @@ def addDirsToDirsTable(dirsToImport, dirHashes):
         dirsToAdd.append((dirhash, dirHashes[dirhash]))
     DbQueries.addDirsToDirsTable(dirsToAdd)
 
+def getPathsNotAlreadyInDatabase(dirHashes, filesToImport):
+    dirsPaths = {v: k for k, v in dirHashes.iteritems()}
 
-rootDirPath = "/Users/m/dEtc"
+    pathsToImport = []
+    for filehash in filesToImport:
+        for path in filesToImport[filehash]:
+            dirpath = path[0]
+            filename = path[1]
+            dirhash = dirsPaths[dirpath]
+            pathsToImport.append((filehash, filename, dirhash))
+
+    existingPathsInDb = DbQueries.getAllFilePaths()
+
+    filepathsNotInDatabase = list(set(pathsToImport) - set(existingPathsInDb))
+
+    return filepathsNotInDatabase
+
+
+def addPathsToPathsTable(pathsToImport):
+    DbQueries.addPathsToPathsTable(pathsToImport)
+
+
+def skipDirStart(filesToImport):
+    if not settings.skipAtStartOfPath:
+        return filesToImport
+    importedFiles = {}
+    for filehash in filesToImport:
+        importedFiles[filehash] = []
+        for path in filesToImport[filehash]:
+            dirpath = path[0]
+            filename = path[1]
+            newpath = os.path.relpath(dirpath, settings.skipAtStartOfPath)
+            importedFiles[filehash].append((newpath, filename))
+    return importedFiles
 
 logger = DbLogger.dbLogger()
 dbpath = settings.dbFilePath
 
-allFiles = hashAllFilesInDir(rootDirPath)
+allFiles = hashAllFilesInDir(settings.rootDirPath)
 logger.log("number of unique files: %d" % len(allFiles.keys()))
 
 filesToImport, filesToSkip = filterFiles(allFiles)
 logger.log("number of unique files after filtering: %d" % len(filesToImport.keys()))
+
+logger.log("Skipping files: ")
+for entry in filesToSkip:
+    logger.log("\t%r" % entry)
 
 filehashlist = filesToImport.keys()
 filesToCopy = getFilesNotAlreadyInDatabase(filehashlist)
@@ -113,9 +149,9 @@ logger.log("number of unique files to copy (i.e. not already in database): %d" %
 copyFiles(filesToCopy, filesToImport, settings.depotRoot, logger)
 addFilesToFilesTable(filesToCopy)
 
-directoryPaths = getDirectoryPaths(filesToImport)
-logger.log("number of directory Paths): %d" % len(directoryPaths))
+filesImported = skipDirStart(filesToImport)
 
+directoryPaths = getDirectoryPaths(filesImported)
 directories = set([x[0] for x in directoryPaths])
 logger.log("number of directories): %d" % len(directories))
 
@@ -126,81 +162,17 @@ logger.log("number of dirs to import (i.e. not already in database): %d" % len(d
 if dirsToImport:
     addDirsToDirsTable(dirsToImport, dirHashes)
 
+pathsToImport = getPathsNotAlreadyInDatabase(dirHashes, filesImported)
+logger.log("number of directory Paths): %d" % len(directoryPaths))
+logger.log("number of paths to import (i.e. not already in database): %d" % len(pathsToImport))
+
+if pathsToImport:
+    addPathsToPathsTable(pathsToImport)
+
+
 # TODO NEXT
-# 4: add dirpaths to db, probably filter first
+# 4a: option to skip first part of path
+# 4b: os independent path?
 # 5: report: files skipped, how many copied, how many already there, etc...
 # 6: rename vars etc to be more accurate
 # 7: clean up
-'''
-results = DbQueries.getAllDirEntries()
-for entry in results:
-    logger.log(entry)
-'''
-
-
-'''
-
-
-
-
-
-db = CoreDb.CoreDb(dbpath)
-
-
-rootDirPath  = u"I:\\debWorking\\working\\done_pass1"
-#rootDirPath  = u"I:\ztempworking"
-rootDirPath  = u"I:\\thinkInDepotButCheck"
-
-
-
-#excludeList = ["custom.css", "logo.png"]
-filehashAndPathList = getFilehashListFromDirPath(rootDirPath, logger)
-
-logger.log("%d files" % len(filehashAndPathList))
-count = 0
-newFiles = 0
-newPaths = 0
-
-depotRootPath1 = "E:\\objectstore1" # should only have through 159 (0x00 to 0x99)
-depotRootPath2 = "I:\\objectstore2"  # 161 through 255 (0xA0 to 0XFF)
-depotRootPath3 = "I:\\objectstore3"  # new stuff
-depotList = [(160, depotRootPath1), (256, depotRootPath2)]
-
-for filehash, dirpath, filename in filehashAndPathList:
-	count += 1
-	logger.log("%d: %s:%s:%s" % (count, filehash, dirpath, filename))
-
-	filestatus = "notFound"
-	fileInfo = miscQueries.getFileInfo(db, filehash)
-	if fileInfo:
-		filestatus = fileInfo[3]
-
-	if filestatus == "notFound" or filestatus == "deleted":
-		logger.log("\tcopying file into depot")
-		filepath = os.path.join(dirpath, filename)
-		#FileUtils.CopyFileIntoCorrectDepot(depotList, filepath, filehash, logger)
-		FileUtils.CopyFileIntoDepot(depotRootPath3, filepath, filehash, logger)
-		newFiles += 1
-		if not fileInfo:
-			filesize = os.path.getsize(filepath)
-			logger.log("adding to files table")
-			miscQueries.insertFileEntry(db, filehash, filesize, 1)
-		else:
-			miscQueries.setFileStatus(db, filehash, None)
-
-	newDirPath = dirpath
-	#newDirPath = dirpath.replace("F:", "A:")
-	dirhash = Sha1HashUtilities.HashString(newDirPath)
-	if not miscQueries.checkIfDirhashInDatabase(db, dirhash):
-		logger.log("\tnew dir path %s" % newDirPath)
-		miscQueries.insertDirHash(db, dirhash, newDirPath)
-		newPaths += 1
-
-	if not miscQueries.checkIfFileDirectoryInDatabase(db, filehash, filename, dirhash):
-		miscQueries.insertOriginalDir(db, filehash, filename, dirhash)
-
-logger.log("%d new files " % newFiles)
-logger.log("%d new paths" % newPaths)
-
-
-'''

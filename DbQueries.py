@@ -63,12 +63,14 @@ def tempAddFilesToFilesTable(filehashList):
         exit(1)
 
 
-
-# FIGURE OUT HOW TO DO THIS!
 def addDirsToDirsTable(dirlist):
     command = "insert into %s (dirPathHash, dirPath) values (?, ?);" % DbSchema.directoriesTable
     executeManyNonQuery(command, dirlist)
 
+
+def addPathsToPathsTable(pathsToImport):
+    command = "insert into %s (filehash, filename, dirPathHash) values (?, ?, ?);" % DbSchema.directoryForFileTable
+    executeManyNonQuery(command, pathsToImport)
 
 
 def getAllFileEntries():
@@ -78,5 +80,9 @@ def getAllFileEntries():
 
 def getAllDirEntries():
     command = "select * from %s;" % DbSchema.directoriesTable
+    return executeSqlQueryReturningMultipleRows(command)
+
+def getAllFilePaths():
+    command = "select filehash, filename, dirPathHash from %s;" % DbSchema.directoryForFileTable
     return executeSqlQueryReturningMultipleRows(command)
 

@@ -5,12 +5,11 @@
 # only run first time!
 
 import sqlite3
-import os
 
 import DbSchema
+import settings
 
-
-dbFilePath = "/Users/m/db3.sqlite"
+dbFilePath = settings.dbFilePath
 
 '''
 uncomment this if creating additional tables after database already created

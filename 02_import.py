@@ -74,10 +74,11 @@ def copyFilesIntoDepot(filepaths, depotRootPath, logger):
 def getRelativePathsAndHashes(filesAndPaths):
     for entry in filesAndPaths:
         dirpath = entry["origDirpath"]
-        if not settings.baseDirToRemoveFromPaths:
-            newpath = dirpath
+        if settings.startStringToRemoveFromPaths and \
+                dirpath.startswith(settings.startStringToRemoveFromPaths):
+            newpath = dirpath[len(settings.startStringToRemoveFromPaths):]
         else:
-            newpath = os.path.relpath(dirpath, settings.baseDirToRemoveFromPaths)
+            newpath = dirpath
         entry["dirpath"] = newpath
         entry["dirpathHash"] = ShaHash.HashString(newpath)
 
@@ -90,7 +91,6 @@ def getDirsNotAlreadyInDatabase(dirhashList):
 
 def addDirsToDatabase(dirsToImport, filesAndPaths):
     dirsToAdd = set()
-    dirsToImportSet = set(dirsToImport)
     for entry in filesAndPaths:
         dirhash = entry["dirpathHash"]
         dirpath = entry["dirpath"]

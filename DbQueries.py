@@ -67,7 +67,23 @@ def getAllDirEntries():
     command = "select * from %s;" % DbSchema.directoriesTable
     return executeSqlQueryReturningMultipleRows(command)
 
+
 def getAllFilePaths():
     command = "select filehash, filename, dirPathHash from %s;" % DbSchema.filepathsTable
+    return executeSqlQueryReturningMultipleRows(command)
+
+
+def getAllDirsAndFiles():
+    command = "select dirpath, filename from %s join %s " % (DbSchema.directoriesTable, DbSchema.filepathsTable) \
+              + " using (dirPathHash);"
+    return executeSqlQueryReturningMultipleRows(command)
+
+def getAllFilesLocationsNames():
+    command = "select f.filehash, dirpath, filename from " \
+               + " %s as f " % DbSchema.filesTable \
+               + " join %s as fp " % DbSchema.filepathsTable \
+               + " join %s as d " % DbSchema.directoriesTable \
+               + " where f.filehash = fp.filehash " \
+               + " and fp.dirPathHash = d.dirPathHash;"
     return executeSqlQueryReturningMultipleRows(command)
 

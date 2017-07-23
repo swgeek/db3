@@ -10,30 +10,27 @@ import DbQueries
 
 
 def hashAllFilesInDir(rootDirPath):
-    allFilesInDir = {}
+    allFilesInDir = []
     for dirpath, subdirList, subdirFiles in os.walk(rootDirPath):
         for filename in subdirFiles:
             filepath = os.path.join(dirpath, filename)
             filehash = ShaHash.HashFile(filepath)
             filehash = filehash.upper()
-            if filehash not in allFilesInDir:
-                allFilesInDir[filehash] = []
-            allFilesInDir[filehash].append((dirpath, filename))
+            fileinfo = {"filehash":filehash, "origDirpath":dirpath, "filename":filename}
+            allFilesInDir.append(fileinfo)
     return allFilesInDir
 
 
 # removes files that we don't want to import, e.g. the annoying cookies MacOs leaves.
 def filterFiles(allFiles):
-    keep = {}
+    keep = []
     skip = []
-    for filehash in allFiles:
-        for dirpath, filename in allFiles[filehash]:
-            if filename.startswith("."):
-                skip.append(os.path.join(dirpath, filename))
-            else:
-                if filehash not in keep:
-                    keep[filehash] = []
-                keep[filehash].append((dirpath, filename))
+    for entry in allFiles:
+        filename = entry["filename"]
+        if filename.startswith("."):
+            skip.append(entry)
+        else:
+            keep.append(entry)
     return keep, skip
 
 
@@ -44,7 +41,23 @@ def getFilesNotAlreadyInDatabase(filehashlist):
     return filesNotInDatabase
 
 
-def CopyFileIntoDepot(depotRootPath, sourceFilePath, filehash, logger):
+def getFirstFilePathsForFiles(filesToFind, filesAndPaths):
+    filesToFindSet = set(filesToFind)
+    firstFilePaths = {}
+    for entry in filesAndPaths:
+        filehash = entry["filehash"]
+        if filehash in firstFilePaths:
+            continue # already have this file
+        if filehash not in filesToFindSet:
+            continue  # not interested in this file
+        filepath = os.path.join(entry["dirpath"], entry["filename"])
+        firstFilePaths[filehash] = filepath
+    return firstFilePaths
+
+
+def copyFilesIntoDepot(filepaths, depotRootPath, logger):
+    for filehash in filepaths:
+        sourceFilePath = filepaths[filehash]
         depotSubdir =  filehash[0:2]
         destinationDirPath = os.path.join(depotRootPath, depotSubdir)
         destinationFilePath = os.path.join(depotRootPath, depotSubdir, filehash)
@@ -52,36 +65,21 @@ def CopyFileIntoDepot(depotRootPath, sourceFilePath, filehash, logger):
         if not os.path.isdir(destinationDirPath):
             os.mkdir(destinationDirPath)
 
-        # for now always copy, even if file exists.
+        # always copy, even if file exists.
         # If copy interrupted file may be corrupt, but a reimport will fix
         logger.log("copying %s to %s" % (sourceFilePath, destinationFilePath))
         shutil.copyfile(sourceFilePath, destinationFilePath)
 
 
-def copyFiles(filesToCopy, allFiles, depotRootPath, logger):
-    for filehash in filesToCopy:
-        dirpath, filename = allFiles[filehash][0]
-        sourceFilePath = os.path.join(dirpath, filename)
-        CopyFileIntoDepot(depotRootPath, sourceFilePath, filehash, logger)
-
-
-def addFilesToFilesTable(filehashList):
-    DbQueries.addFiles(filehashList)
-
-
-def getDirectoryPaths(filesToCopy):
-    directoryPaths = []
-    for filehash in filesToCopy:
-        directoryPaths += filesToCopy[filehash]
-    return directoryPaths
-
-
-def getDirHashes(directories):
-    dirhashes = {}
-    for dir in directories:
-        dirhash = ShaHash.HashString(dir)
-        dirhashes[dirhash] = dir
-    return dirhashes
+def getRelativePathsAndHashes(filesAndPaths):
+    for entry in filesAndPaths:
+        dirpath = entry["origDirpath"]
+        if not settings.baseDirToRemoveFromPaths:
+            newpath = dirpath
+        else:
+            newpath = os.path.relpath(dirpath, settings.baseDirToRemoveFromPaths)
+        entry["dirpath"] = newpath
+        entry["dirpathHash"] = ShaHash.HashString(newpath)
 
 
 def getDirsNotAlreadyInDatabase(dirhashList):
@@ -90,22 +88,26 @@ def getDirsNotAlreadyInDatabase(dirhashList):
     return dirsToImport
 
 
-def addDirsToDirsTable(dirsToImport, dirHashes):
-    dirsToAdd = []
-    for dirhash in dirsToImport:
-        dirsToAdd.append((dirhash, dirHashes[dirhash]))
-    DbQueries.addDirectories(dirsToAdd)
+def addDirsToDatabase(dirsToImport, filesAndPaths):
+    dirsToAdd = set()
+    dirsToImportSet = set(dirsToImport)
+    for entry in filesAndPaths:
+        dirhash = entry["dirpathHash"]
+        dirpath = entry["dirpath"]
+        if dirhash in dirsToImport:
+            dirsToAdd.add((dirhash, dirpath))
 
-def getPathsNotAlreadyInDatabase(dirHashes, filesToImport):
-    dirsPaths = {v: k for k, v in dirHashes.iteritems()}
+    DbQueries.addDirectories(list(dirsToAdd))
 
+
+def getFilePathsNotAlreadyInDatabase(filesAndPaths):
+    # convert filepaths to tuple format used by database
     pathsToImport = []
-    for filehash in filesToImport:
-        for path in filesToImport[filehash]:
-            dirpath = path[0]
-            filename = path[1]
-            dirhash = dirsPaths[dirpath]
-            pathsToImport.append((filehash, filename, dirhash))
+    for entry in filesAndPaths:
+        dirhash = entry["dirpathHash"]
+        filename = entry["filename"]
+        filehash = entry["filehash"]
+        pathsToImport.append((filehash, filename, dirhash))
 
     existingPathsInDb = DbQueries.getAllFilePaths()
 
@@ -114,72 +116,41 @@ def getPathsNotAlreadyInDatabase(dirHashes, filesToImport):
     return filepathsNotInDatabase
 
 
-def addPathsToPathsTable(pathsToImport):
-    DbQueries.addFilepaths(pathsToImport)
-
-
-def skipDirStart(filesToImport):
-    if not settings.baseDirToRemoveFromPaths:
-        return filesToImport
-    importedFiles = {}
-    for filehash in filesToImport:
-        importedFiles[filehash] = []
-        for path in filesToImport[filehash]:
-            dirpath = path[0]
-            filename = path[1]
-            newpath = os.path.relpath(dirpath, settings.baseDirToRemoveFromPaths)
-            importedFiles[filehash].append((newpath, filename))
-    return importedFiles
-
-
 
 logger = DbLogger.dbLogger()
 
-allFiles = hashAllFilesInDir(settings.dirToImport)
-logger.log("number of unique files: %d" % len(allFiles.keys()))
+allFilesAndPaths = hashAllFilesInDir(settings.dirToImport)
+logger.log("total number filepaths: %d" % len(allFilesAndPaths))
 
-filesToImport, filesToSkip = filterFiles(allFiles)
-logger.log("number of unique files after filtering: %d" % len(filesToImport.keys()))
+filesAndPathsToImport, filesToSkip = filterFiles(allFilesAndPaths)
+logger.log("number of filepaths after filtering: %d" % len(filesAndPathsToImport))
 
 logger.log("Skipping files: ")
 for entry in filesToSkip:
     logger.log("\t%r" % entry)
 
-filehashlist = filesToImport.keys()
-filesToCopy = getFilesNotAlreadyInDatabase(filehashlist)
-logger.log("number of unique files to copy (i.e. not already in database): %d" % len(filesToCopy))
+filehashlist = [x["filehash"] for x in allFilesAndPaths]
+newFiles = getFilesNotAlreadyInDatabase(filehashlist)
+logger.log("number of unique files: %d" % len(set(filehashlist)))
+logger.log("number of unique files to copy (i.e. not already in depot): %d" % len(newFiles))
 
-copyFiles(filesToCopy, filesToImport, settings.depotRoot, logger)
-addFilesToFilesTable(filesToCopy)
+newFilePaths = getFirstFilePathsForFiles(newFiles, filesAndPathsToImport)
 
-filesImported = skipDirStart(filesToImport)
+copyFilesIntoDepot(newFilePaths, settings.depotRoot, logger)
+DbQueries.addFiles(newFiles)
 
-directoryPaths = getDirectoryPaths(filesImported)
-directories = set([x[0] for x in directoryPaths])
-logger.log("number of directories): %d" % len(directories))
+getRelativePathsAndHashes(filesAndPathsToImport)
 
-dirHashes = getDirHashes(directories)
-dirsToImport = getDirsNotAlreadyInDatabase(dirHashes.keys())
-logger.log("number of dirs to import (i.e. not already in database): %d" % len(dirsToImport))
+dirHashes = [x["dirpathHash"] for x in filesAndPathsToImport]
+newDirs = getDirsNotAlreadyInDatabase(dirHashes)
+logger.log("number of dirs to import (i.e. not already in database): %d" % len(newDirs))
 
-if dirsToImport:
-    addDirsToDirsTable(dirsToImport, dirHashes)
+if newDirs:
+    addDirsToDatabase(newDirs, filesAndPathsToImport)
 
-pathsToImport = getPathsNotAlreadyInDatabase(dirHashes, filesImported)
-logger.log("number of directory Paths): %d" % len(directoryPaths))
-logger.log("number of paths to import (i.e. not already in database): %d" % len(pathsToImport))
+newPaths = getFilePathsNotAlreadyInDatabase(filesAndPathsToImport)
+logger.log("number of paths to import (i.e. not already in database): %d" % len(newPaths))
 
-if pathsToImport:
-    addPathsToPathsTable(pathsToImport)
+if newPaths:
+    DbQueries.addFilepaths(newPaths)
 
-print "ALL Files"
-allpaths = DbQueries.getAllFileEntries()
-for entry in allpaths:
-    print entry
-
-# TODO NEXT
-# 4a: option to skip first part of path
-# 4b: os independent path?
-# 5: report: files skipped, how many copied, how many already there, etc...
-# 6: rename vars etc to be more accurate
-# 7: clean up

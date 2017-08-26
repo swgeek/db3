@@ -9,55 +9,56 @@ import settings
 import DbQueries
 
 
-def hashAllFilesInDir(rootDirPath):
-    allFilesInDir = []
-    for dirpath, subdirList, subdirFiles in os.walk(rootDirPath):
-        for filename in subdirFiles:
+# simple filter, remove files and dirs starting with "."
+# if get more complicated, pass in filters as parameters and use regex
+def getFileList(rootDirPath):
+    fileList = []
+    skippedFiles = []
+    skippedDirs = []
+    for dirpath, subdirs, files in os.walk(rootDirPath):
+        #make copy of subdirs before iterating as will be modifying subdirs
+        subdirsCopy = subdirs[:]
+        for dirname in subdirsCopy:
+            if dirname.startswith("."):
+                subdirpath = os.path.join(dirpath, dirname)
+                skippedDirs.append(subdirpath)
+                subdirs.remove(dirname)
+        for filename in files:
             filepath = os.path.join(dirpath, filename)
-            filehash = ShaHash.HashFile(filepath)
-            filehash = filehash.upper()
-            fileinfo = {"filehash":filehash, "origDirpath":dirpath, "filename":filename}
-            allFilesInDir.append(fileinfo)
-    return allFilesInDir
+            if filename.startswith("."):
+                skippedFiles.append(filepath)
+            else:
+                fileList.append({"filename":filename, "origDirpath":dirpath})
+    return fileList, skippedDirs, skippedFiles
 
 
-# removes files that we don't want to import, e.g. the annoying cookies MacOs leaves.
-def filterFiles(allFiles):
-    keep = []
-    skip = []
-    for entry in allFiles:
-        filename = entry["filename"]
-        if filename.startswith("."):
-            skip.append(entry)
-        else:
-            keep.append(entry)
-    return keep, skip
+def hashFiles(filelist):
+    for fileinfo in filelist:
+        filepath = os.path.join(fileinfo["origDirpath"], fileinfo["filename"])
+        filehash = ShaHash.HashFile(filepath)
+        filehash = filehash.upper()
+        fileinfo["filehash"] = filehash
 
 
-def getFilesNotAlreadyInDatabase(filehashlist):
+def getFilesNotAlreadyInDatabase(filehashSet):
     filesInDatabase =  DbQueries.getAllFilehashValues()
     # only want to copy files not in database
-    filesNotInDatabase = list(set(filehashlist) - set(filesInDatabase))
+    filesNotInDatabase = list(set(filehashSet) - set(filesInDatabase))
     return filesNotInDatabase
 
 
-def getFirstFilePathsForFiles(filesToFind, filesAndPaths):
-    filesToFindSet = set(filesToFind)
-    firstFilePaths = {}
-    for entry in filesAndPaths:
+def getFilePathsForFilehash(newFiles, filelist):
+    filehashFilePathMapping = {}
+    for entry in filelist:
         filehash = entry["filehash"]
-        if filehash in firstFilePaths:
-            continue # already have this file
-        if filehash not in filesToFindSet:
-            continue  # not interested in this file
-        filepath = os.path.join(entry["origDirpath"], entry["filename"])
-        firstFilePaths[filehash] = filepath
-    return firstFilePaths
+        if (filehash in newFiles) and (filehash not in filehashFilePathMapping):
+            filehashFilePathMapping[filehash] = os.path.join(entry["origDirpath"], entry["filename"])
+    return filehashFilePathMapping
 
 
-def copyFilesIntoDepot(filepaths, depotRootPath, logger):
-    for filehash in filepaths:
-        sourceFilePath = filepaths[filehash]
+def copyFilesIntoDepot(hashesAndPaths, depotRootPath, logger):
+    for filehash in hashesAndPaths:
+        sourceFilePath = hashesAndPaths[filehash]
         depotSubdir =  filehash[0:2]
         destinationDirPath = os.path.join(depotRootPath, depotSubdir)
         destinationFilePath = os.path.join(depotRootPath, depotSubdir, filehash)
@@ -71,8 +72,27 @@ def copyFilesIntoDepot(filepaths, depotRootPath, logger):
         shutil.copyfile(sourceFilePath, destinationFilePath)
 
 
-def getRelativePathsAndHashes(filesAndPaths):
-    for entry in filesAndPaths:
+def removePrefixFromDirNames(filelist):
+    for entry in filelist:
+
+        origDirpath = entry["origDirpath"]
+        newpath = origDirpath
+        if settings.startStringToRemoveFromPaths and \
+                origDirpath.startswith(settings.startStringToRemoveFromPaths):
+            newpath = origDirpath[len(settings.startStringToRemoveFromPaths):]
+        entry["dirpath"] = newpath
+
+
+def getUniqueDirectories(filelist):
+    allDirs = set()
+    for entry in filelist:
+        for filepath in hashesAndPaths[filehash]:
+            dirpath = dirname()
+
+
+
+    for entry in newFiles:
+        filepathList = newFiles
         dirpath = entry["origDirpath"]
         if settings.startStringToRemoveFromPaths and \
                 dirpath.startswith(settings.startStringToRemoveFromPaths):
@@ -119,27 +139,43 @@ def getFilePathsNotAlreadyInDatabase(filesAndPaths):
 
 logger = DbLogger.dbLogger()
 
-allFilesAndPaths = hashAllFilesInDir(settings.dirToImport)
-logger.log("total number filepaths: %d" % len(allFilesAndPaths))
+filelist, skippedDirs, skippedFiles = getFileList(settings.dirToImport)
 
-filesAndPathsToImport, filesToSkip = filterFiles(allFilesAndPaths)
-logger.log("number of filepaths after filtering: %d" % len(filesAndPathsToImport))
+for dirpath in skippedDirs:
+    logger.log("skipping dir %s" % dirpath)
+logger.log("\n")
 
-logger.log("Skipping files: ")
-for entry in filesToSkip:
-    logger.log("\t%r" % entry)
+for filepath in skippedFiles:
+    logger.log("skipping file %s" % filepath)
+logger.log("\n")
 
-filehashlist = [x["filehash"] for x in allFilesAndPaths]
-newFiles = getFilesNotAlreadyInDatabase(filehashlist)
-logger.log("number of unique files: %d" % len(set(filehashlist)))
+hashFiles(filelist)
+
+filehashSet = set([x["filehash"] for x in filelist])
+newFiles = getFilesNotAlreadyInDatabase(filehashSet)
+logger.log("number of unique files: %d" % len(filehashSet))
 logger.log("number of unique files to copy (i.e. not already in depot): %d" % len(newFiles))
 
-newFilePaths = getFirstFilePathsForFiles(newFiles, filesAndPathsToImport)
 
-copyFilesIntoDepot(newFilePaths, settings.depotRoot, logger)
+hashesAndPaths = getFilePathsForFilehash(newFiles, filelist)
+copyFilesIntoDepot(hashesAndPaths, settings.depotRoot, logger)
+
 DbQueries.addFiles(newFiles)
 
-getRelativePathsAndHashes(filesAndPathsToImport)
+removePrefixFromDirNames(filelist)
+
+for entry in filelist:
+    print entry
+
+# get unique dirs
+# hash dirpaths
+# add dirpaths to db
+# add file/dirpath mappings to db
+exit(1)
+
+
+filesAndPathsToImport = getDirpathsAndHashes(hashesAndPaths)
+
 
 dirHashes = [x["dirpathHash"] for x in filesAndPathsToImport]
 newDirs = getDirsNotAlreadyInDatabase(dirHashes)

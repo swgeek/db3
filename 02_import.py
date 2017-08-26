@@ -86,21 +86,16 @@ def removePrefixFromDirNames(filelist):
 def getUniqueDirectories(filelist):
     allDirs = set()
     for entry in filelist:
-        for filepath in hashesAndPaths[filehash]:
-            dirpath = dirname()
+        allDirs.add(entry["dirpath"])
+    return allDirs
 
 
-
-    for entry in newFiles:
-        filepathList = newFiles
-        dirpath = entry["origDirpath"]
-        if settings.startStringToRemoveFromPaths and \
-                dirpath.startswith(settings.startStringToRemoveFromPaths):
-            newpath = dirpath[len(settings.startStringToRemoveFromPaths):]
-        else:
-            newpath = dirpath
-        entry["dirpath"] = newpath
-        entry["dirpathHash"] = ShaHash.HashString(newpath)
+def hashDirpaths(dirpathsToHash):
+    hashToPathMapping = {}
+    for dirpath in dirpathsToHash:
+        dirpathHash = ShaHash.HashString(dirpath)
+        hashToPathMapping[dirpathHash] = dirpath
+    return hashToPathMapping
 
 
 def getDirsNotAlreadyInDatabase(dirhashList):
@@ -109,32 +104,36 @@ def getDirsNotAlreadyInDatabase(dirhashList):
     return dirsToImport
 
 
-def addDirsToDatabase(dirsToImport, filesAndPaths):
-    dirsToAdd = set()
-    for entry in filesAndPaths:
-        dirhash = entry["dirpathHash"]
-        dirpath = entry["dirpath"]
-        if dirhash in dirsToImport:
-            dirsToAdd.add((dirhash, dirpath))
-
+def addDirsToDatabase(dirHashes, dirhashToPathMapping):
+    dirsToAdd = []
+    for dirhash in dirHashes:
+        dirpath = dirhashToPathMapping[dirhash]
+        dirsToAdd.append((dirhash, dirpath))
     DbQueries.addDirectories(list(dirsToAdd))
 
 
-def getFilePathsNotAlreadyInDatabase(filesAndPaths):
+def addDirpathHashToEntries(filelist, dirhashToPathMapping):
+    # need pathToHash mapping
+    pathToHashMapping = {v:k for k,v in dirhashToPathMapping.iteritems()}
+    for entry in filelist:
+        entry["dirpathHash"] = pathToHashMapping[entry["dirpath"]]
+
+
+def getFilePathsNotAlreadyInDatabase(filelist):
     # convert filepaths to tuple format used by database
     pathsToImport = []
-    for entry in filesAndPaths:
+    for entry in filelist:
         dirhash = entry["dirpathHash"]
         filename = entry["filename"]
         filehash = entry["filehash"]
         pathsToImport.append((filehash, filename, dirhash))
 
     existingPathsInDb = DbQueries.getAllFilePaths()
-
     filepathsNotInDatabase = list(set(pathsToImport) - set(existingPathsInDb))
-
     return filepathsNotInDatabase
 
+def addFilepathsToDatabase(filepaths):
+    DbQueries.addFilepaths(filepaths)
 
 
 logger = DbLogger.dbLogger()
@@ -156,37 +155,24 @@ newFiles = getFilesNotAlreadyInDatabase(filehashSet)
 logger.log("number of unique files: %d" % len(filehashSet))
 logger.log("number of unique files to copy (i.e. not already in depot): %d" % len(newFiles))
 
-
 hashesAndPaths = getFilePathsForFilehash(newFiles, filelist)
 copyFilesIntoDepot(hashesAndPaths, settings.depotRoot, logger)
-
 DbQueries.addFiles(newFiles)
 
 removePrefixFromDirNames(filelist)
+uniqueDirs = getUniqueDirectories(filelist)
+hashToDirpathMapping = hashDirpaths(uniqueDirs)
+newDirs = getDirsNotAlreadyInDatabase(hashToDirpathMapping.keys())
 
-for entry in filelist:
-    print entry
-
-# get unique dirs
-# hash dirpaths
-# add dirpaths to db
-# add file/dirpath mappings to db
-exit(1)
-
-
-filesAndPathsToImport = getDirpathsAndHashes(hashesAndPaths)
-
-
-dirHashes = [x["dirpathHash"] for x in filesAndPathsToImport]
-newDirs = getDirsNotAlreadyInDatabase(dirHashes)
 logger.log("number of dirs to import (i.e. not already in database): %d" % len(newDirs))
 
-if newDirs:
-    addDirsToDatabase(newDirs, filesAndPathsToImport)
+addDirsToDatabase(newDirs, hashToDirpathMapping)
 
-newPaths = getFilePathsNotAlreadyInDatabase(filesAndPathsToImport)
-logger.log("number of paths to import (i.e. not already in database): %d" % len(newPaths))
+addDirpathHashToEntries(filelist, hashToDirpathMapping)
+
+newPaths = getFilePathsNotAlreadyInDatabase(filelist)
 
 if newPaths:
-    DbQueries.addFilepaths(newPaths)
+    logger.log("number of paths to import (i.e. not already in database): %d" % len(newPaths))
 
+    addFilepathsToDatabase(newPaths)

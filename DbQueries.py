@@ -73,14 +73,19 @@ def getAllFilePaths():
     return executeSqlQueryReturningMultipleRows(command)
 
 
+def getAllFilePathsWithTimestamps():
+    command = "select filehash, filename, dirPathHash, timestamp from %s;" % DbSchema.filepathsTable
+    return executeSqlQueryReturningMultipleRows(command)
+
+
 def getAllDirsAndFiles():
     command = "select dirpath, filename from %s join %s " % (DbSchema.directoriesTable, DbSchema.filepathsTable) \
               + " using (dirPathHash);"
     return executeSqlQueryReturningMultipleRows(command)
 
 
-def getAllFilesLocationsNames():
-    command = "select f.filehash, dirpath, filename from " \
+def getAllFilesLocationsNamesTimestamps():
+    command = "select f.filehash, dirpath, filename, timestamp from " \
                + " %s as f " % DbSchema.filesTable \
                + " join %s as fp " % DbSchema.filepathsTable \
                + " join %s as d " % DbSchema.directoriesTable \

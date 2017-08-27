@@ -1,4 +1,5 @@
 
+import os
 import os.path
 import shutil
 
@@ -12,17 +13,18 @@ logger = DbLogger.dbLogger()
 # pretty inefficient to get every single file just to extract some
 # if this ends up slow then rewrite query
 
-results = DbQueries.getAllFilesLocationsNames()
+results = DbQueries.getAllFilesLocationsNamesTimestamps()
+
 filesToExtract = [x for x in results if x[1].startswith(settings.dirToExport)]
 
 filesAndNewPaths = {}
-for filehash, dirpath, filename in filesToExtract:
+for filehash, dirpath, filename, timestamp in filesToExtract:
     newpath = os.path.join(settings.exportDir, dirpath, filename)
-    filesAndNewPaths[filehash] = newpath
+    filesAndNewPaths[filehash] = (newpath, timestamp)
 
 for filehash in filesAndNewPaths:
     sourcePath = os.path.join(settings.depotRoot, filehash[0:2], filehash)
-    destinationPath = filesAndNewPaths[filehash]
+    destinationPath, timestamp = filesAndNewPaths[filehash]
 
     if not os.path.isfile(sourcePath):
         logger.log("ERROR: %s does not exist" % sourcePath)
@@ -33,5 +35,5 @@ for filehash in filesAndNewPaths:
 
     logger.log("copying %s" % destinationPath)
     shutil.copyfile(sourcePath, destinationPath)
-
-
+    # set timestamp to original timestamp of file when imported
+    os.utime(destinationPath,(timestamp, timestamp))

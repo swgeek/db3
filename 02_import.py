@@ -148,16 +148,19 @@ def addFilepathsToDatabase(filepaths, filelist):
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument("dirToImport", nargs=1, help="directory to import")
 parser.add_argument("-n", action="store_true", help="don't actually import. This is just to check what files would be imported")
 args = parser.parse_args()
 
 dontImport = args.n
+dirToImport = args.dirToImport[0]
 
 logger = DbLogger.dbLogger()
 
-logger.log("don't import: %r" % dontImport)
+logger.log("don't import flag: %r" % dontImport)
+logger.log("directory to import: %s" % dirToImport)
 
-filelist, skippedDirs, skippedFiles = getFileList(settings.dirToImport)
+filelist, skippedDirs, skippedFiles = getFileList(dirToImport)
 
 for dirpath in skippedDirs:
     logger.log("skipping dir %s" % dirpath)

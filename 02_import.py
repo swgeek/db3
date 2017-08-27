@@ -2,6 +2,7 @@
 
 import os.path
 import shutil
+import time
 
 import DbLogger
 import ShaHash
@@ -28,7 +29,8 @@ def getFileList(rootDirPath):
             if filename.startswith("."):
                 skippedFiles.append(filepath)
             else:
-                fileList.append({"filename":filename, "origDirpath":dirpath})
+                timestamp = int(os.path.getmtime(filepath))
+                fileList.append({"filename":filename, "origDirpath":dirpath, "timestamp":timestamp})
     return fileList, skippedDirs, skippedFiles
 
 
@@ -127,13 +129,21 @@ def getFilePathsNotAlreadyInDatabase(filelist):
         filename = entry["filename"]
         filehash = entry["filehash"]
         pathsToImport.append((filehash, filename, dirhash))
-
     existingPathsInDb = DbQueries.getAllFilePaths()
     filepathsNotInDatabase = list(set(pathsToImport) - set(existingPathsInDb))
     return filepathsNotInDatabase
 
-def addFilepathsToDatabase(filepaths):
-    DbQueries.addFilepaths(filepaths)
+
+def addFilepathsToDatabase(filepaths, filelist):
+    valuesToAdd = []
+    for entry in filelist:
+        dirhash = entry["dirpathHash"]
+        filename = entry["filename"]
+        filehash = entry["filehash"]
+        timestamp = entry["timestamp"]
+        if (filehash, filename, dirhash) in filepaths:
+            valuesToAdd.append((filehash, filename, dirhash, timestamp))
+    DbQueries.addFilepaths(valuesToAdd)
 
 
 logger = DbLogger.dbLogger()
@@ -174,5 +184,4 @@ newPaths = getFilePathsNotAlreadyInDatabase(filelist)
 
 if newPaths:
     logger.log("number of paths to import (i.e. not already in database): %d" % len(newPaths))
-
-    addFilepathsToDatabase(newPaths)
+    addFilepathsToDatabase(newPaths, filelist)

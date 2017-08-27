@@ -1,7 +1,7 @@
 
 
 filepathsTable = "filepaths"
-filepathsSchema = "filehash char(40), filename varchar(500), dirPathHash char(40), PRIMARY KEY (filehash, filename, dirPathHash)"
+filepathsSchema = "filehash char(40), filename varchar(500), dirPathHash char(40), timestamp integer, PRIMARY KEY (filehash, filename, dirPathHash)"
 
 directoriesTable = "directories"
 directoriesSchema = "dirPathHash char(40) PRIMARY KEY, dirPath varchar(500)"

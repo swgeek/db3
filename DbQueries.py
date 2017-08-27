@@ -54,7 +54,7 @@ def addDirectories(dirlist):
 
 
 def addFilepaths(pathsToImport):
-    command = "insert into %s (filehash, filename, dirPathHash) values (?, ?, ?);" % DbSchema.filepathsTable
+    command = "insert into %s (filehash, filename, dirPathHash, timestamp) values (?, ?, ?, ?);" % DbSchema.filepathsTable
     executeMany(command, pathsToImport)
 
 
@@ -77,6 +77,7 @@ def getAllDirsAndFiles():
     command = "select dirpath, filename from %s join %s " % (DbSchema.directoriesTable, DbSchema.filepathsTable) \
               + " using (dirPathHash);"
     return executeSqlQueryReturningMultipleRows(command)
+
 
 def getAllFilesLocationsNames():
     command = "select f.filehash, dirpath, filename from " \

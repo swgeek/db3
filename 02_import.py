@@ -177,13 +177,16 @@ newFiles = getFilesNotAlreadyInDatabase(filehashSet)
 logger.log("number of unique files: %d" % len(filehashSet))
 logger.log("number of unique files to copy (i.e. not already in depot): %d" % len(newFiles))
 
+hashesAndPaths = getFilePathsForFilehash(newFiles, filelist)
+
 # TODO: also print out filepaths for this flag, but don't add them of course
 if dontImport:
-    for filepath in newFiles:
+    allpaths = hashesAndPaths.values()
+    allpaths.sort()
+    for filepath in allpaths:
         logger.log("would import: %r" % filepath)
     exit(1)
 
-hashesAndPaths = getFilePathsForFilehash(newFiles, filelist)
 copyFilesIntoDepot(hashesAndPaths, settings.depotRoot, logger)
 DbQueries.addFiles(newFiles)
 

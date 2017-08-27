@@ -26,7 +26,7 @@ def getFileList(rootDirPath):
                 subdirs.remove(dirname)
         for filename in files:
             filepath = os.path.join(dirpath, filename)
-            if filename.startswith("."):
+            if filename.startswith(".") or filename.endswith(".pyc"):
                 skippedFiles.append(filepath)
             else:
                 timestamp = int(os.path.getmtime(filepath))

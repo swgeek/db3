@@ -3,6 +3,7 @@
 import os.path
 import shutil
 import time
+import argparse
 
 import DbLogger
 import ShaHash
@@ -146,7 +147,15 @@ def addFilepathsToDatabase(filepaths, filelist):
     DbQueries.addFilepaths(valuesToAdd)
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-n", action="store_true", help="don't actually import. This is just to check what files would be imported")
+args = parser.parse_args()
+
+dontImport = args.n
+
 logger = DbLogger.dbLogger()
+
+logger.log("don't import: %r" % dontImport)
 
 filelist, skippedDirs, skippedFiles = getFileList(settings.dirToImport)
 
@@ -164,6 +173,12 @@ filehashSet = set([x["filehash"] for x in filelist])
 newFiles = getFilesNotAlreadyInDatabase(filehashSet)
 logger.log("number of unique files: %d" % len(filehashSet))
 logger.log("number of unique files to copy (i.e. not already in depot): %d" % len(newFiles))
+
+# TODO: also print out filepaths for this flag, but don't add them of course
+if dontImport:
+    for filepath in newFiles:
+        logger.log("would import: %r" % filepath)
+    exit(1)
 
 hashesAndPaths = getFilePathsForFilehash(newFiles, filelist)
 copyFilesIntoDepot(hashesAndPaths, settings.depotRoot, logger)

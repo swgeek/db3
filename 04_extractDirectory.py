@@ -33,6 +33,12 @@ for filehash in filesAndNewPaths:
     if not os.path.exists(os.path.dirname(destinationPath)):
         os.makedirs(os.path.dirname(destinationPath))
 
+    while os.path.exists(destinationPath):
+        logger.log("\t%s already exists!" % destinationPath)
+        basename, extension = os.path.splitext(destinationPath)
+        destinationPath = basename + "_" + extension
+        logger.log("\ttrying %s" % destinationPath)
+
     logger.log("copying %s" % destinationPath)
     shutil.copyfile(sourcePath, destinationPath)
     # set timestamp to original timestamp of file when imported

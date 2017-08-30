@@ -196,9 +196,9 @@ hashToDirpathMapping = hashDirpaths(uniqueDirs)
 newDirs = getDirsNotAlreadyInDatabase(hashToDirpathMapping.keys())
 
 logger.log("number of dirs to import (i.e. not already in database): %d" % len(newDirs))
-
+for dirhash in newDirs:
+    logger.log("\t%s" % hashToDirpathMapping[dirhash])
 addDirsToDatabase(newDirs, hashToDirpathMapping)
-
 addDirpathHashToEntries(filelist, hashToDirpathMapping)
 
 newPaths = getFilePathsNotAlreadyInDatabase(filelist)

@@ -20,10 +20,10 @@ for entry in results:
 
 
 logger.log("\n\nFILES AND LOCATIONS")
-results = DbQueries.getAllFilesLocationsNames()
+results = DbQueries.getAllFilesLocationsNamesTimestamps()
 files = {}
 for entry in results:
-    filehash, dirpath, filename = entry
+    filehash, dirpath, filename, _ = entry
     if filehash not in files:
         files[filehash] = []
     filepath = os.path.join(dirpath, filename)

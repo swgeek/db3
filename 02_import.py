@@ -21,7 +21,7 @@ def getFileList(rootDirPath):
         #make copy of subdirs before iterating as will be modifying subdirs
         subdirsCopy = subdirs[:]
         for dirname in subdirsCopy:
-            if dirname.startswith("."):
+            if dirname.startswith(".") or dirname.endswith(".lrdata"):
                 subdirpath = os.path.join(dirpath, dirname)
                 skippedDirs.append(subdirpath)
                 subdirs.remove(dirname)

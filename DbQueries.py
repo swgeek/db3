@@ -69,6 +69,9 @@ def addDirectories(dirlist):
     command = "insert into %s (dirPathHash, dirPath) values (?, ?);" % DbSchema.directoriesTable
     executeMany(command, dirlist)
 
+def removeDirectory(dirpathHash):
+    command = "delete from %s where dirPathHash = '%s'" % (DbSchema.directoriesTable, dirpathHash)
+    executeSqlQuery(command)
 
 def addFilepaths(pathsToImport):
     command = "insert into %s (filehash, filename, dirPathHash, timestamp) values (?, ?, ?, ?);" % DbSchema.filepathsTable

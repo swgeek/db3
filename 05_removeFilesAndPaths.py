@@ -215,13 +215,14 @@ for filehash in matchedFilesInDatabase:
         for dirhash, filename in pathlist:
             dirpath = dirhashsAndDirpaths[dirhash]
             if dontDelete:
-                logger.log( "\t%s, %s" % (dirpath, filename))
+                logger.log( "\twould remove %s, %s, %s" % (dirhash, dirpath, filename))
             else:
                 logger.log("\t%s, %s, %s" % (dirhash, dirpath, filename))
                 removePath(filehash, dirhash, filename)
 
-    logger.log("\tremoving file from files table")
-    DbQueries.deleteFilehash(filehash)
-    logger.log("\tremoving file from depot")
-    deleteFileFromDepot(filehash, settings.depotRoot, logger)
+    if not dontDelete:
+        logger.log("\tremoving file from files table")
+        DbQueries.deleteFilehash(filehash)
+        logger.log("\tremoving file from depot")
+        deleteFileFromDepot(filehash, settings.depotRoot, logger)
 

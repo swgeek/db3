@@ -9,9 +9,10 @@ logger = DbLogger.dbLogger()
 
 logger.log("DIRS:")
 results = DbQueries.getAllDirEntries()
-for entry in results:
-    logger.log(entry[1])
+dirNames = [x[1] for x in results]
 
+for entry in sorted(dirNames):
+    logger.log(entry)
 
 logger.log("\n\nFILES: ")
 results = DbQueries.getAllDirsAndFiles()

@@ -218,7 +218,9 @@ for filehash in matchedFilesInDatabase:
                 logger.log( "\twould remove %s, %s, %s" % (dirhash, dirpath, filename))
             else:
                 logger.log("\t%s, %s, %s" % (dirhash, dirpath, filename))
+                logger.log("calling removePath")
                 removePath(filehash, dirhash, filename)
+                logger.log("returned")
 
     if not dontDelete:
         logger.log("\tremoving file from files table")

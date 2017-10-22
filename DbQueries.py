@@ -4,14 +4,17 @@ import sqlite3
 import settings
 import DbSchema
 
-def executeSqlQuery(sqlStatement):
+def executeSqlQuery(sqlStatement, params=None):
     connection = sqlite3.connect(settings.databaseFile)
     connection.text_factory = str
     rows = None
     try:
         with connection: # if do not use with, then have to do "commit" at end
             cursor = connection.cursor()
-            cursor.execute(sqlStatement)
+            if params:
+                cursor.execute(sqlStatement, params)
+            else:
+                cursor.execute(sqlStatement)
     except sqlite3.Error, e:
         print "Error %s" % e.args[0]
         exit(1)
@@ -77,11 +80,10 @@ def addFilepaths(pathsToImport):
     command = "insert into %s (filehash, filename, dirPathHash, timestamp) values (?, ?, ?, ?);" % DbSchema.filepathsTable
     executeMany(command, pathsToImport)
 
-# TODO, CLEAN UP QUERY!
+
 def deleteFilepath(filehash, filename, dirpathHash):
-    command = "delete from %s where (filehash = '%s' and filename = '%s' and dirPathHash = '%s')" \
-        % (DbSchema.filepathsTable, filehash, filename, dirpathHash)
-    executeSqlQuery(command)
+    command = "delete from %s where (filehash = ? and filename = ? and dirPathHash = ?)" % DbSchema.filepathsTable
+    executeSqlQuery(command,  (filehash, filename, dirpathHash))
 
 
 def getAllFileEntries():

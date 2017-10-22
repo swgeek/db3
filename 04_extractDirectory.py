@@ -19,6 +19,8 @@ filesToExtract = [x for x in results if x[1].startswith(settings.dirToExport)]
 
 filesAndNewPaths = {}
 for filehash, dirpath, filename, timestamp in filesToExtract:
+    if dirpath.startswith("/"):
+        dirpath = dirpath[1:]
     newpath = os.path.join(settings.exportDir, dirpath, filename)
     filesAndNewPaths[filehash] = (newpath, timestamp)
 
@@ -28,7 +30,9 @@ for filehash in filesAndNewPaths:
 
     if not os.path.isfile(sourcePath):
         logger.log("ERROR: %s does not exist" % sourcePath)
+        continue # comment out or get rid of!!
         exit(1)
+
 
     if not os.path.exists(os.path.dirname(destinationPath)):
         os.makedirs(os.path.dirname(destinationPath))

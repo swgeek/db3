@@ -27,7 +27,7 @@ def getFileList(rootDirPath):
                 subdirs.remove(dirname)
         for filename in files:
             filepath = os.path.join(dirpath, filename)
-            if filename.startswith(".") or filename.endswith(".pyc"):
+            if filename.startswith(".") or filename.endswith(".pyc") or filename.startswith("dblog_"):
                 skippedFiles.append(filepath)
             else:
                 timestamp = int(os.path.getmtime(filepath))
@@ -60,6 +60,7 @@ def getFilePathsForFilehash(newFiles, filelist):
 
 
 def copyFilesIntoDepot(hashesAndPaths, depotRootPath, logger):
+    copyCount = 0
     for filehash in hashesAndPaths:
         sourceFilePath = hashesAndPaths[filehash]
         depotSubdir =  filehash[0:2]
@@ -69,10 +70,23 @@ def copyFilesIntoDepot(hashesAndPaths, depotRootPath, logger):
         if not os.path.isdir(destinationDirPath):
             os.mkdir(destinationDirPath)
 
+        '''
         # always copy, even if file exists.
         # If copy interrupted file may be corrupt, but a reimport will fix
         logger.log("copying %s to %s" % (sourceFilePath, destinationFilePath))
         shutil.copyfile(sourceFilePath, destinationFilePath)
+        '''
+
+        # copy only if not already in depot. Temporary, if in database should be in depot
+        # If copy interrupted file may be corrupt, but a reimport will fix
+        if os.path.isfile(destinationFilePath):
+            logger.log("not copying %s, already in depot" % sourceFilePath)
+        else:
+            logger.log("copying %s to %s" % (sourceFilePath, destinationFilePath))
+            shutil.copyfile(sourceFilePath, destinationFilePath)
+            copyCount += 1
+    logger.log("%d files copied " % copyCount)
+
 
 
 def removePrefixFromDirNames(filelist):

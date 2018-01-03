@@ -34,12 +34,13 @@ def convertToHexString(num):
 
 logger = DbLogger.dbLogger()
 
-sourceDepotRoot = "/Volumes/m2/depot"
-destDepotRoot = "/Volumes/db/depot"
+sourceDepotRoot = "/Volumes/dd/depot"
+secondDepotRoot = "/Volumes/m2/depot"
+destDepotRoot = "/Volumes/m2/depot"
 
 
 # skip non directories
-start = 0
+start = 128
 end = 256
 
 dircount = 0
@@ -52,7 +53,7 @@ for i in range(start, end):
 
     logger.log("source directory %s" % subdirpath)
 
-    destdirpath = os.path.join(destDepotRoot, subdir)
+    destdirpath = os.path.join(secondDepotRoot, subdir)
     if not os.path.isdir(destdirpath):
         logger.log("%s does not exist in dest, making dir" % destdirpath)
         os.mkdir(destdirpath)

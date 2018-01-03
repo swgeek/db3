@@ -15,12 +15,12 @@ logger = DbLogger.dbLogger()
 
 results = DbQueries.getAllFilesLocationsNamesTimestamps()
 
-filesToExtract = [x for x in results if x[1].startswith(settings.dirToExport)]
+filesToExtract = [x for x in results if (x[1].startswith(settings.dirToExport + "/") or x[1] == settings.dirToExport)]
 
 filesAndNewPaths = {}
 for filehash, dirpath, filename, timestamp in filesToExtract:
-    if dirpath.startswith("/"):
-        dirpath = dirpath[1:]
+    #if dirpath.startswith("/"):
+    #    dirpath = dirpath[1:]
     newpath = os.path.join(settings.exportDir, dirpath, filename)
     filesAndNewPaths[filehash] = (newpath, timestamp)
 

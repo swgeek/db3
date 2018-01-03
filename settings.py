@@ -1,8 +1,8 @@
 # probably should be a text or json config file, but this is convenient for now
 
-databaseFile = "/Users/v724660/db3.sqlite"
-depotRoot = "/Volumes/m2/depot"
-startStringToRemoveFromPaths = "/Users/v724660/"
-exportDir = "/Users/v724660/export"
-dirToExport = "zl3"
+databaseFile = "/Users/m/db3.sqlite"
+depotRoot = "/Volumes/dd/depot"
+startStringToRemoveFromPaths = "/Users/m/z/"
+exportDir = "/Users/m/export"
+dirToExport = "zl2p/fromPhone"
 corruptFiles = "/Volumes/b/corrupt"

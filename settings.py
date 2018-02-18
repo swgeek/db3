@@ -5,4 +5,9 @@ depotRoot = "/Volumes/dd/depot"
 startStringToRemoveFromPaths = "/Users/m/z/"
 exportDir = "/Users/m/export"
 dirToExport = "zl2p/fromPhone"
-corruptFiles = "/Volumes/b/corrupt"
+corruptFiles = "/Volumes/dd/corrupt"
+
+'''
+
+zl2p/fromPhone
+'''

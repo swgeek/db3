@@ -35,12 +35,12 @@ def convertToHexString(num):
 logger = DbLogger.dbLogger()
 
 sourceDepotRoot = "/Volumes/dd/depot"
-secondDepotRoot = "/Volumes/m2/depot"
-destDepotRoot = "/Volumes/m2/depot"
+secondDepotRoot = "/Volumes/b/depot"
+destDepotRoot = "/Volumes/b/depot"
 
 
 # skip non directories
-start = 128
+start = 0
 end = 256
 
 dircount = 0

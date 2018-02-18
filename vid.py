@@ -14,14 +14,12 @@ def openRandomFile(filelist, start=None, end=None):
     while not filename:
         randomFileIndex = int(random.random() * (end - start) + start)
         filename = filelist[randomFileIndex]
-        if not filename.endswith(".txt"):
-            filename = None
 
     #command = "open -a TextEdit %s" % filelist[randomFileIndex]
-    command = "open -e %s" % filename
+    command = "open '%s'" % filename
     os.system(command)
 
-dirlist = ["/Users/m/z/d"]
+dirlist = ["/Users/m/z/vids"]
 
 filelist = []
 for dir in dirlist:
@@ -32,10 +30,7 @@ for dir in dirlist:
 
 filelist.sort()
 
-for i in range(1):
-    openRandomFile(filelist)
+openRandomFile(filelist)
 
-for i in range(1):
-    openRandomFile(filelist, len(filelist) - 50)
 
 
